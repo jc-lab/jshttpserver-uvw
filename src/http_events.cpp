@@ -29,7 +29,7 @@ namespace jshttpserver {
 
               std::string method = client->getRawMethod();
 
-              req.url = client->getUrl();
+              req.full_url = client->getUrl();
               req.raw_method = method;
 
               for(auto it = method.begin(); it != method.end(); it++) {

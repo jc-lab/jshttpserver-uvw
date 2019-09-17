@@ -22,6 +22,7 @@
 
 #include "http_events.hpp"
 
+#include <iostream>
 namespace jshttpserver {
     class Server : private HttpEvents::Handler {
     public:
@@ -29,12 +30,14 @@ namespace jshttpserver {
 
     private:
         struct RequestMappingItem {
+            bool doc_root_mapping;
+
             int methods;
             std::regex path_regex;
             RequestHandler handler;
             std::list<std::string> path_variables;
 
-            RequestMappingItem(int _methods, const std::string &_path_regex, RequestHandler &_handler, const std::list<std::string> &_path_variables) : methods(_methods), path_regex("^" + _path_regex), handler(_handler), path_variables(_path_variables){
+            RequestMappingItem(bool _doc_root_mapping, int _methods, const std::string &_path_regex, const RequestHandler &_handler, const std::list<std::string> &_path_variables) : doc_root_mapping(_doc_root_mapping), methods(_methods), path_regex(_path_regex), handler(_handler), path_variables(_path_variables) {
             }
         };
 
@@ -50,6 +53,8 @@ namespace jshttpserver {
 
         void acceptClient(std::shared_ptr<uvw::TCPHandle> client);
 
+        int64_t requestMappingImpl(bool doc_root_map, int methods, const std::string& path_regex, const RequestHandler &handler);
+
     public:
         virtual ~Server();
 
@@ -57,8 +62,9 @@ namespace jshttpserver {
         void addListen(int port, const std::string& bind_ip = "0.0.0.0");
         void close();
 
-        int64_t requestMapping(int methods, const std::string& path_regex, RequestHandler handler);
-        void removeRequestMapping(int64_t index);
+        int64_t requestMapping(int methods, const std::string& path_regex, const RequestHandler &handler);
+        int64_t documentRootMapping(const std::string& path_prefix_regex, const RequestHandler &handler);
+        void removeMapping(int64_t index);
 
     protected:
         void httpRequestHandle(HttpRequest &req, HttpResponse &res) override;

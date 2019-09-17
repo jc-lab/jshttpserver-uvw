@@ -28,13 +28,17 @@ namespace jshttpserver {
     };
 
     struct HttpRequest {
-        std::string url;
+        std::string full_url;
+        std::string url_search;
         Method method;
         std::string raw_method;
-        std::string status_code;
         std::string body;
         std::map<const std::string, const std::string> headers;
         std::map<const std::string, const std::string> path_variables;
+
+
+        // Only Document Root Mapping
+        std::string doc_path_name;
     };
 
 } // namespace jshttpserver

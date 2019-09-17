@@ -82,13 +82,21 @@ namespace jshttpserver {
         client->read();
     }
 
-    int64_t Server::requestMapping(int methods, const std::string& path_matcher, RequestHandler handler) {
+    int64_t Server::requestMappingImpl(bool doc_root_map, int methods, const std::string& path_matcher, const RequestHandler &handler) {
         int64_t index = ++request_mappings_count_;
 
         static std::regex pv_regex("\\{([a-zA-Z0-9_]+)(:([^}]+))?\\}");
-        std::string path_regex(path_matcher);
+        std::string path_regex("^" + path_matcher);
 
         std::list<std::string> path_variables;
+
+        {
+            size_t start_pos = 0;
+            while((start_pos = path_regex.find("/", start_pos)) != std::string::npos) {
+                path_regex.replace(start_pos, 1, "\\/");
+                start_pos += 2;
+            }
+        }
 
         std::smatch m;
         do {
@@ -100,20 +108,33 @@ namespace jshttpserver {
                 if(!subregex.empty()) {
                     path_regex.replace(m.position(0), m.str(0).length(), "(" + subregex + ")");
                 }else{
-                    path_regex.replace(m.position(0), m.str(0).length(), "([^/]+)");
+                    path_regex.replace(m.position(0), m.str(0).length(), "([^/?]+)");
                 }
 
                 path_variables.push_back(name);
             }
         } while (m.size() > 0);
 
-        std::unique_ptr<RequestMappingItem> item(new RequestMappingItem(methods, "^" + path_regex + "$", handler, path_variables));
+        std::unique_ptr<RequestMappingItem> item;
+        if(doc_root_map)
+            path_regex.append("[\\/]{0,1}([^?#]+)?(\\?.*)?$");
+        else
+            path_regex.append("(\\?[^#]*)?$");
+        item.reset(new RequestMappingItem(doc_root_map, methods, path_regex, handler, path_variables));
         request_mappings_.insert( { index, std::move(item) } );
 
         return index;
     }
 
-    void Server::removeRequestMapping(int64_t index) {
+    int64_t Server::requestMapping(int methods, const std::string& path_matcher, const RequestHandler &handler) {
+        return requestMappingImpl(false, methods, path_matcher, handler);
+    }
+
+    int64_t Server::documentRootMapping(const std::string& path_prefix_regex, const RequestHandler &handler) {
+        return requestMappingImpl(true, METHOD_GET, path_prefix_regex, handler);
+    }
+
+    void Server::removeMapping(int64_t index) {
         auto iter = request_mappings_.find(index);
         if(iter != request_mappings_.end()) {
             request_mappings_.erase(iter);
@@ -125,7 +146,7 @@ namespace jshttpserver {
 
         for(auto iter = request_mappings_.cbegin(); iter != request_mappings_.cend(); iter++) {
             RequestMappingItem *item = iter->second.get();
-            std::sregex_iterator path_iter(req.url.cbegin(), req.url.cend(), item->path_regex);
+            std::sregex_iterator path_iter(req.full_url.cbegin(), req.full_url.cend(), item->path_regex);
             std::sregex_iterator path_end;
 
             if(path_iter != path_end) {
@@ -135,6 +156,17 @@ namespace jshttpserver {
                     int index = 1;
                     for (; index < m.size() && it_pv_name != item->path_variables.cend(); index++, it_pv_name++) {
                         req.path_variables.insert({*it_pv_name, m.str(index)});
+                    }
+                    if(item->doc_root_mapping) {
+                        if(index < m.size()) {
+                            req.doc_path_name = m.str(index);
+                            index++;
+                        }
+                    }
+                    if(index < m.size()) {
+                        std::string temp = m.str(index++);
+                        if(!temp.empty())
+                            req.url_search = temp.substr(1);
                     }
                     item->handler(req, res);
                     path_result = 1;

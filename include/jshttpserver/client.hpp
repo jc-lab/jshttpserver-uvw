@@ -36,10 +36,10 @@ namespace jshttpserver {
         }
 
         const std::string &getUrl() const {
-            return this->url;
+            return this->full_url;
         }
         void setUrl(const std::string &url) {
-            this->url = url;
+            this->full_url = url;
         }
         const std::string &getRawMethod() const {
             return this->raw_method;
