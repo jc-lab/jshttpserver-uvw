@@ -82,13 +82,74 @@ namespace jshttpserver {
         client->read();
     }
 
+    int64_t Server::requestMapping(int methods, const std::string& path_matcher, RequestHandler handler) {
+        int64_t index = ++request_mappings_count_;
+
+        static std::regex pv_regex("\\{([a-zA-Z0-9_]+)(:([^}]+))?\\}");
+        std::string path_regex(path_matcher);
+
+        std::list<std::string> path_variables;
+
+        std::smatch m;
+        do {
+            std::regex_search(path_regex, m, pv_regex);
+            if (m.size() > 0) {
+                std::string name = m.str(1);
+                std::string subregex = m.str(3);
+
+                if(!subregex.empty()) {
+                    path_regex.replace(m.position(0), m.str(0).length(), "(" + subregex + ")");
+                }else{
+                    path_regex.replace(m.position(0), m.str(0).length(), "([^/]+)");
+                }
+
+                path_variables.push_back(name);
+            }
+        } while (m.size() > 0);
+
+        std::unique_ptr<RequestMappingItem> item(new RequestMappingItem(methods, "^" + path_regex + "$", handler, path_variables));
+        request_mappings_.insert( { index, std::move(item) } );
+
+        return index;
+    }
+
+    void Server::removeRequestMapping(int64_t index) {
+        auto iter = request_mappings_.find(index);
+        if(iter != request_mappings_.end()) {
+            request_mappings_.erase(iter);
+        }
+    }
+
     void Server::httpRequestHandle(HttpRequest &req, HttpResponse &res) {
-        res.setStatus(200);
-        res.setHeader("X-Test", "OK");
-        res.setNoBuffering(true);
-        res << "NEW REQUEST" << std::endl;
-        res << "URL = " << req.url << std::endl;
-        res << "METHOD = " << req.method << std::endl;
+        int path_result = 0;
+
+        for(auto iter = request_mappings_.cbegin(); iter != request_mappings_.cend(); iter++) {
+            RequestMappingItem *item = iter->second.get();
+            std::sregex_iterator path_iter(req.url.cbegin(), req.url.cend(), item->path_regex);
+            std::sregex_iterator path_end;
+
+            if(path_iter != path_end) {
+                if((item->methods < 0) || (item->methods & req.method)) {
+                    const std::smatch &m = *path_iter;
+                    auto it_pv_name = item->path_variables.cbegin();
+                    int index = 1;
+                    for (; index < m.size() && it_pv_name != item->path_variables.cend(); index++, it_pv_name++) {
+                        req.path_variables.insert({*it_pv_name, m.str(index)});
+                    }
+                    item->handler(req, res);
+                    path_result = 1;
+                }else{
+                    path_result = 2;
+                }
+                break;
+            }
+        }
+
+        if(path_result == 2) {
+            res.setStatus(405);
+        }else if(path_result == 0){
+            res.setStatus(404);
+        }
     }
 
 } // namespace jshttpserver

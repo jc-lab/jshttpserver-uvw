@@ -14,7 +14,7 @@
 
 namespace jshttpserver {
 
-    class HttpRequest;
+    struct HttpRequest;
     class HttpResponse;
 
     class HttpEvents {

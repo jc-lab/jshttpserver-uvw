@@ -17,12 +17,24 @@
 
 namespace jshttpserver {
 
+    enum Method {
+        METHOD_UNKNOWN = 0,
+        METHOD_GET = 0x0001,
+        METHOD_POST = 0x0002,
+        METHOD_PUT = 0x0004,
+        METHOD_DELETE = 0x0008,
+        METHOD_OPTIONS = 0x0010,
+        METHOD_ALL = -1
+    };
+
     struct HttpRequest {
         std::string url;
-        std::string method;
+        Method method;
+        std::string raw_method;
         std::string status_code;
         std::string body;
         std::map<const std::string, const std::string> headers;
+        std::map<const std::string, const std::string> path_variables;
     };
 
 } // namespace jshttpserver

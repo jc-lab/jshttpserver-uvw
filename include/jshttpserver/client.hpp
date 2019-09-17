@@ -41,11 +41,14 @@ namespace jshttpserver {
         void setUrl(const std::string &url) {
             this->url = url;
         }
-        const std::string &getMethod() const {
-            return this->method;
+        const std::string &getRawMethod() const {
+            return this->raw_method;
         }
-        void setMethod(const std::string &method) {
-            this->method = method;
+        void setRawMethod(const std::string &raw_method) {
+            this->raw_method = raw_method;
+        }
+        const Method getMethod() const {
+            return this->method;
         }
         const std::string &getBody() const {
             return this->body;

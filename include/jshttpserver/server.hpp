@@ -12,20 +12,39 @@
 
 #include <memory>
 #include <string>
+#include <functional>
 
 #include <set>
+#include <map>
+#include <regex>
 
 #include <uvw.hpp>
 
 #include "http_events.hpp"
 
 namespace jshttpserver {
-class Server : private HttpEvents::Handler {
+    class Server : private HttpEvents::Handler {
+    public:
+        typedef std::function<void(HttpRequest& req, HttpResponse &res)> RequestHandler;
+
     private:
+        struct RequestMappingItem {
+            int methods;
+            std::regex path_regex;
+            RequestHandler handler;
+            std::list<std::string> path_variables;
+
+            RequestMappingItem(int _methods, const std::string &_path_regex, RequestHandler &_handler, const std::list<std::string> &_path_variables) : methods(_methods), path_regex("^" + _path_regex), handler(_handler), path_variables(_path_variables){
+            }
+        };
+
         std::shared_ptr<uvw::Loop> loop_;
         std::set<std::shared_ptr<uvw::TCPHandle>> server_handles_;
 
         HttpEvents http_events_;
+
+        int64_t request_mappings_count_;
+        std::map<int64_t, std::unique_ptr<RequestMappingItem>> request_mappings_;
 
         Server(std::shared_ptr<uvw::Loop> loop);
 
@@ -37,6 +56,9 @@ class Server : private HttpEvents::Handler {
         static std::shared_ptr<Server> create(std::shared_ptr<uvw::Loop> loop);
         void addListen(int port, const std::string& bind_ip = "0.0.0.0");
         void close();
+
+        int64_t requestMapping(int methods, const std::string& path_regex, RequestHandler handler);
+        void removeRequestMapping(int64_t index);
 
     protected:
         void httpRequestHandle(HttpRequest &req, HttpResponse &res) override;

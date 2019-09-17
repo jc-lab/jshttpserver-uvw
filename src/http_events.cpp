@@ -27,8 +27,29 @@ namespace jshttpserver {
               HttpRequest req;
               HttpResponse res;
 
+              std::string method = client->getRawMethod();
+
               req.url = client->getUrl();
-              req.method = client->getMethod();
+              req.raw_method = method;
+
+              for(auto it = method.begin(); it != method.end(); it++) {
+                  *it = toupper(*it);
+              }
+              if(method == "GET") {
+                  req.method = METHOD_GET;
+              }else if(method == "POST") {
+                  req.method = METHOD_POST;
+              }else if(method == "PUT") {
+                  req.method = METHOD_PUT;
+              }else if(method == "DELETE") {
+                  req.method = METHOD_DELETE;
+              }else if(method == "OPTIONS") {
+                  req.method = METHOD_OPTIONS;
+              }else if(method == "POST") {
+                  req.method = METHOD_POST;
+              }else {
+                  req.method = METHOD_UNKNOWN;
+              }
 
               res.setWrite([&](std::string str) {
                   auto *client = reinterpret_cast<Client*>(parser->data);
@@ -80,7 +101,7 @@ namespace jshttpserver {
             [](http_parser *parser) -> int {
 
               auto *client = reinterpret_cast<Client*>(parser->data);
-              client->setMethod(http_method_str((enum http_method) parser->method));
+              client->setRawMethod(http_method_str((enum http_method) parser->method));
               return 0;
             };
 
