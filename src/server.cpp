@@ -22,7 +22,7 @@ namespace jshttpserver {
     }
 
     Server::Server(std::shared_ptr<uvw::Loop> loop)
-        : loop_(loop), http_events_(this)
+        : loop_(loop), http_events_(HttpEvents::create(this))
     {
     }
 
@@ -54,7 +54,7 @@ namespace jshttpserver {
     }
 
     void Server::acceptClient(std::shared_ptr<uvw::TCPHandle> client) {
-        std::shared_ptr<Client> instance(new Client());
+		std::shared_ptr<Client> instance(Client::create());
 
         client->data(instance);
 
@@ -69,7 +69,7 @@ namespace jshttpserver {
           Client *client = reinterpret_cast<Client*>(handle.data().get());
 
           if (evt.length >= 0) {
-              int parsed = client->execEvent(&http_events_, evt.data.get(), evt.length);
+              int parsed = client->execEvent(http_events_.get(), evt.data.get(), evt.length);
               if (parsed < evt.length) {
                   handle.close();
               }

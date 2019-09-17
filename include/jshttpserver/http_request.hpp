@@ -13,8 +13,6 @@
 #include <string>
 #include <map>
 
-#include <http_parser.h>
-
 namespace jshttpserver {
 
     enum Method {
@@ -35,7 +33,6 @@ namespace jshttpserver {
         std::string body;
         std::map<const std::string, const std::string> headers;
         std::map<const std::string, const std::string> path_variables;
-
 
         // Only Document Root Mapping
         std::string doc_path_name;

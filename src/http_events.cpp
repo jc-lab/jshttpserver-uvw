@@ -14,118 +14,144 @@
 #include <jshttpserver/http_request.hpp>
 #include <jshttpserver/http_response.hpp>
 
+#include <http_parser.h>
+
 namespace jshttpserver {
 
-    HttpEvents::HttpEvents(Handler *handler) : handler_(handler) {
-        //
-        // called once a connection has been made and the message is complete.
-        //
-        static std::function<int(http_parser *parser)> on_message_complete =
-            [&](http_parser *parser) -> int {
-              auto *client = reinterpret_cast<Client*>(parser->data);
+	class HttpEvents::Impl : public HttpEvents {
+	private:
+		http_parser_settings settings_;
 
-              HttpRequest req;
-              HttpResponse res;
+		Handler* handler_;
 
-              std::string method = client->getRawMethod();
+	public:
+		Impl(Handler* handler) : handler_(handler) {
+			//
+			// called once a connection has been made and the message is complete.
+			//
+			static std::function<int(http_parser * parser)> on_message_complete =
+				[&](http_parser* parser) -> int {
+				auto* client = reinterpret_cast<Client*>(parser->data);
 
-              req.full_url = client->getUrl();
-              req.raw_method = method;
+				HttpRequest req;
+				HttpResponse res;
 
-              for(auto it = method.begin(); it != method.end(); it++) {
-                  *it = toupper(*it);
-              }
-              if(method == "GET") {
-                  req.method = METHOD_GET;
-              }else if(method == "POST") {
-                  req.method = METHOD_POST;
-              }else if(method == "PUT") {
-                  req.method = METHOD_PUT;
-              }else if(method == "DELETE") {
-                  req.method = METHOD_DELETE;
-              }else if(method == "OPTIONS") {
-                  req.method = METHOD_OPTIONS;
-              }else if(method == "POST") {
-                  req.method = METHOD_POST;
-              }else {
-                  req.method = METHOD_UNKNOWN;
-              }
+				std::string method = client->getRawMethod();
 
-              res.setWrite([&](std::string str) {
-                  auto *client = reinterpret_cast<Client*>(parser->data);
+				req.full_url = client->getUrl();
+				req.raw_method = method;
 
-                  std::unique_ptr<char[]> write_buf(new char[str.length()]);
-                  memcpy(write_buf.get(), str.c_str(), str.length());
+				for (auto it = method.begin(); it != method.end(); it++) {
+					*it = toupper(*it);
+				}
+				if (method == "GET") {
+					req.method = METHOD_GET;
+				}
+				else if (method == "POST") {
+					req.method = METHOD_POST;
+				}
+				else if (method == "PUT") {
+					req.method = METHOD_PUT;
+				}
+				else if (method == "DELETE") {
+					req.method = METHOD_DELETE;
+				}
+				else if (method == "OPTIONS") {
+					req.method = METHOD_OPTIONS;
+				}
+				else if (method == "POST") {
+					req.method = METHOD_POST;
+				}
+				else {
+					req.method = METHOD_UNKNOWN;
+				}
 
-                  client->handle()->write(std::move(write_buf), str.length());
-              });
+				res.setWrite([&](std::string str) {
+					auto* client = reinterpret_cast<Client*>(parser->data);
 
-              handler_->httpRequestHandle(req, res);
+					std::unique_ptr<char[]> write_buf(new char[str.length()]);
+					memcpy(write_buf.get(), str.c_str(), str.length());
 
-              return 0;
-            };
+					client->handle()->write(std::move(write_buf), str.length());
+					});
 
-        memset(&settings_, 0, sizeof(settings_));
+				handler_->httpRequestHandle(req, res);
 
-        //
-        // called after the url has been parsed.
-        //
-        settings_.on_url =
-            [](http_parser *parser, const char *at, size_t len) -> int {
+				return 0;
+			};
 
-              auto *client = reinterpret_cast<Client*>(parser->data);
+			memset(&settings_, 0, sizeof(settings_));
 
-              if (at && client) {
-                  client->setUrl(std::string(at, len));
-              }
-              return 0;
-            };
+			//
+			// called after the url has been parsed.
+			//
+			settings_.on_url =
+				[](http_parser* parser, const char* at, size_t len) -> int {
 
-        //
-        // called when there are either fields or values in the request.
-        //
-        settings_.on_header_field =
-            [](http_parser *parser, const char *at, size_t length) -> int {
-              return 0;
-            };
+				auto* client = reinterpret_cast<Client*>(parser->data);
 
-        settings_.on_header_value =
-            [](http_parser *parser, const char *at, size_t length) -> int {
-              return 0;
-            };
+				if (at && client) {
+					client->setUrl(std::string(at, len));
+				}
+				return 0;
+			};
 
-        //
-        // called once all fields and values have been parsed.
-        //
-        settings_.on_headers_complete =
-            [](http_parser *parser) -> int {
+			//
+			// called when there are either fields or values in the request.
+			//
+			settings_.on_header_field =
+				[](http_parser* parser, const char* at, size_t length) -> int {
+				return 0;
+			};
 
-              auto *client = reinterpret_cast<Client*>(parser->data);
-              client->setRawMethod(http_method_str((enum http_method) parser->method));
-              return 0;
-            };
+			settings_.on_header_value =
+				[](http_parser* parser, const char* at, size_t length) -> int {
+				return 0;
+			};
 
-        //
-        // called when there is a body for the request.
-        //
-        settings_.on_body =
-            [](http_parser *parser, const char *at, size_t len) -> int {
+			//
+			// called once all fields and values have been parsed.
+			//
+			settings_.on_headers_complete =
+				[](http_parser* parser) -> int {
 
-              auto *client = reinterpret_cast<Client*>(parser->data);
+				auto* client = reinterpret_cast<Client*>(parser->data);
+				client->setRawMethod(http_method_str((enum http_method) parser->method));
+				return 0;
+			};
 
-              if (at && client) {
-                  client->setBody(std::string(at, len));
-              }
-              return 0;
-            };
+			//
+			// called when there is a body for the request.
+			//
+			settings_.on_body =
+				[](http_parser* parser, const char* at, size_t len) -> int {
 
-        //
-        // called after all other events.
-        //
-        settings_.on_message_complete =
-            [](http_parser *parser) -> int {
-              return on_message_complete(parser);
-            };
-    }
+				auto* client = reinterpret_cast<Client*>(parser->data);
+
+				if (at && client) {
+					client->setBody(std::string(at, len));
+				}
+				return 0;
+			};
+
+			//
+			// called after all other events.
+			//
+			settings_.on_message_complete =
+				[](http_parser* parser) -> int {
+				return on_message_complete(parser);
+			};
+		}
+
+		int exec(void* parser, const char* data, size_t len) override {
+			http_parser* real_parser = reinterpret_cast<http_parser*>(parser);
+			return (int)http_parser_execute(real_parser, &settings_, data, len);
+		}
+	};
+
+	std::unique_ptr<HttpEvents> HttpEvents::create(Handler *handler) {
+		std::unique_ptr<HttpEvents> instance(new Impl(handler));
+		return std::move(instance);
+	}
 
 } // namespace jshttpserver

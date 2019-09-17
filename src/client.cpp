@@ -13,20 +13,31 @@
 
 namespace jshttpserver {
 
+	class Client::Impl : public Client {
+	private:
+		http_parser parser_;
+	
+	public:
+		void start(std::shared_ptr<Client> self, std::shared_ptr<uvw::TCPHandle> handle) override {
+			handle_ = handle;
+			http_parser_init(&parser_, HTTP_REQUEST);
+			parser_.data = this;
+		}
+
+		int execEvent(HttpEvents* http_events, const char* data, size_t len) override {
+			return http_events->exec(&parser_, data, len);
+		}
+	};
+
     Client::Client() {
-    }
-
-    void Client::start(std::shared_ptr<Client> self, std::shared_ptr<uvw::TCPHandle> handle) {
-        handle_ = handle;
-        http_parser_init(&parser_, HTTP_REQUEST);
-        parser_.data = this;
-    }
-
-    int Client::execEvent(HttpEvents *http_events, const char *data, size_t len) {
-        return http_events->exec(&parser_, data, len);
     }
 
     Client::~Client() {
     }
+
+	std::shared_ptr<Client> Client::create() {
+		std::shared_ptr<Client> instance(new Impl());
+		return instance;
+	}
 
 } // namespace jshttpserver

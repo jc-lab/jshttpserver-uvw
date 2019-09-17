@@ -14,21 +14,22 @@
 #include <string>
 
 #include <uvw/tcp.hpp>
-#include <http_parser.h>
 #include "http_events.hpp"
 #include "http_request.hpp"
 
 namespace jshttpserver {
     class Client : protected HttpRequest {
     private:
+		class Impl;
+
         std::weak_ptr<uvw::TCPHandle> handle_;
 
-        http_parser parser_;
-
+		Client();
     public:
-        Client();
-        void start(std::shared_ptr<Client> self, std::shared_ptr<uvw::TCPHandle> handle);
-        int execEvent(HttpEvents *http_events, const char *data, size_t len);
+		static std::shared_ptr<Client> create();
+
+        virtual void start(std::shared_ptr<Client> self, std::shared_ptr<uvw::TCPHandle> handle) = 0;
+		virtual int execEvent(HttpEvents* http_events, const char* data, size_t len) = 0;
         virtual ~Client();
 
         std::shared_ptr<uvw::TCPHandle> handle() {

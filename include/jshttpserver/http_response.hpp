@@ -15,8 +15,6 @@
 #include <sstream>
 #include <map>
 
-#include <http_parser.h>
-
 namespace jshttpserver {
 
     class HttpResponse : public std::ostream {

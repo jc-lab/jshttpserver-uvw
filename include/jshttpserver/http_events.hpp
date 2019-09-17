@@ -10,8 +10,6 @@
 #ifndef __JSHTTPSERVER_HTTP_EVENTS_HPP__
 #define __JSHTTPSERVER_HTTP_EVENTS_HPP__
 
-#include <http_parser.h>
-
 namespace jshttpserver {
 
     struct HttpRequest;
@@ -25,15 +23,11 @@ namespace jshttpserver {
         };
 
     private:
-        http_parser_settings settings_;
-        Handler *handler_;
+		class Impl;
 
     public:
-        HttpEvents(Handler *handler);
-
-        int exec(http_parser *parser, const char *data, size_t len) {
-            return (int) http_parser_execute(parser, &settings_, data, len);
-        }
+		static std::unique_ptr<HttpEvents> create(Handler* handler);
+		virtual int exec(void* parser, const char* data, size_t len) = 0;
 
     };
 

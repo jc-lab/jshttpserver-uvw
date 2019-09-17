@@ -45,7 +45,7 @@ namespace jshttpserver {
         std::shared_ptr<uvw::Loop> loop_;
         std::set<std::shared_ptr<uvw::TCPHandle>> server_handles_;
 
-        HttpEvents http_events_;
+        std::unique_ptr<HttpEvents> http_events_;
 
         int64_t request_mappings_count_;
         std::map<int64_t, std::unique_ptr<RequestMappingItem>> request_mappings_;
