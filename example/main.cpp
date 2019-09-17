@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include <uvw.hpp>
+#include <uvw/loop.hpp>
 #include <jshttpserver/server.hpp>
 #include <jshttpserver/http_request.hpp>
 

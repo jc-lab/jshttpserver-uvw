@@ -18,7 +18,8 @@
 #include <map>
 #include <regex>
 
-#include <uvw.hpp>
+#include <uvw/loop.hpp>
+#include <uvw/tcp.hpp>
 
 #include "http_events.hpp"
 

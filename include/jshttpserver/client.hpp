@@ -13,7 +13,7 @@
 #include <memory>
 #include <string>
 
-#include <uvw.hpp>
+#include <uvw/tcp.hpp>
 #include <http_parser.h>
 #include "http_events.hpp"
 #include "http_request.hpp"
